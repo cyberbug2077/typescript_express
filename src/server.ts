@@ -1,6 +1,10 @@
+import "dotenv/config";
 import App from "./app";
-import PostsController from "./posts/posts.controllers";
+import PostsController from "./posts/posts.controller";
+import validateEnv from "./utils/validateEnv";
 
-const app = new App([new PostsController()], 5500);
+validateEnv();
+
+const app = new App([new PostsController()]);
 
 app.listen();
