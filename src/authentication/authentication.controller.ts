@@ -7,6 +7,10 @@ import CreateUserDto from "../users/user.dto";
 import UserWithThatEmailAlreadyExistsException from "../exceptions/UserWithThatEmailAlreadyExistsException";
 import WrongCredentialsException from "../exceptions/WrongCredentialsException";
 import logInDto from "./logIn.dto";
+import User from "../users/user.interface";
+import TokenData from "../interfaces/tokenData.interface";
+import DataStoredInToken from "../interfaces/dataStoredInToken";
+import * as jwt from "jsonwebtoken";
 
 class AuthenticationController implements Controller {
   public path = "/auth";
@@ -28,6 +32,7 @@ class AuthenticationController implements Controller {
       validationMiddleware(logInDto),
       this.loggingIn
     );
+    this.router.post(`${this.path}/logout`, this.loggingOut);
   }
 
   private resgistration = async (
@@ -44,8 +49,9 @@ class AuthenticationController implements Controller {
         ...userData,
         password,
       });
-
       user.password = undefined;
+      const tokenData = this.createToken(user);
+      response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
       response.send(user);
     }
   };
@@ -64,6 +70,8 @@ class AuthenticationController implements Controller {
       );
       if (isPssswordMatching) {
         user.password = undefined;
+        const tokenData = this.createToken(user);
+        response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
         response.send(user);
       } else {
         next(new WrongCredentialsException());
@@ -72,6 +80,31 @@ class AuthenticationController implements Controller {
       next(new WrongCredentialsException());
     }
   };
+
+  private loggingOut = (
+    requset: express.Request,
+    response: express.Response,
+    next: express.NextFunction
+  ) => {
+    response.setHeader("Set-Cookie", [`Authorization=;Max-age=0`]);
+    response.send(200);
+  };
+
+  private createCookie(tokenData: TokenData) {
+    return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn}`;
+  }
+
+  private createToken(user: User): TokenData {
+    const expiresIn = 60 * 60;
+    const secret = process.env.JWT_SECRET;
+    const dataStoredInToken: DataStoredInToken = {
+      _id: user._id,
+    };
+    return {
+      expiresIn,
+      token: jwt.sign(dataStoredInToken, secret, { expiresIn }),
+    };
+  }
 }
 
 export default AuthenticationController;
