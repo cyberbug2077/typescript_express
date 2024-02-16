@@ -40,9 +40,12 @@ class PostsController implements Controller {
     request: express.Request,
     response: express.Response
   ) => {
-    this.post.find().then((posts) => {
-      response.send(posts);
-    });
+    this.post
+      .find()
+      .populate("author", "-password")
+      .then((posts) => {
+        response.send(posts);
+      });
   };
 
   private getPostById = (
@@ -76,18 +79,18 @@ class PostsController implements Controller {
     });
   };
 
-  private createPost = (
+  private createPost = async (
     request: RequestWithUser,
     response: express.Response
   ) => {
     const postData: Post = request.body;
     const createdPost = new this.post({
       ...postData,
-      authorId: request.user._id,
+      author: request.user._id,
     });
-    createdPost.save().then((savedPost) => {
-      response.send(savedPost);
-    });
+    const savedPost = await createdPost.save();
+    await savedPost.populate("author", "-password");
+    response.send(savedPost);
   };
 
   private deletePost = (
